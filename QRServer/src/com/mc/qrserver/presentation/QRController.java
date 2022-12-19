@@ -6,6 +6,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URLDecoder;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageConfig;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.mc.qrserver.http.HttpStatusCode;
 
 public class QRController {
 	private ServerSocket serverSocket;
@@ -32,32 +43,96 @@ public class QRController {
 				BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
 				BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-				StringBuffer sb = new StringBuffer();
-				String responseStartLine = "http/1.1 200 ok \n";
-				String responseHeader = "Content-Type: text/html; Charset=utf-8 \n\n";
-				String body = "안녕 브라우저";
+//				StringBuffer sb = new StringBuffer();
+//				testHttpMessageFormat(br, sb);
 				
-				String httpMessage = responseStartLine + responseHeader + body;
+				String request = br.readLine();
+				request = URLDecoder.decode(request, "utf-8");
+				
+				// 시작줄에서 url만 추출
+				String url = request.substring(request.indexOf(" ") + 1, request.lastIndexOf(" "));
+				
+				if(url.equals("/")) {
+					String responseHeader = "Content-Type: text/html; Charset=utf-8 \n\n";
+					String body = indexTemplate();				
+					String httpMessage = HttpStatusCode.OK.getStartLine() + responseHeader + body;
 
-//				testHttpMessage(br, sb);
-				bos.write(httpMessage.getBytes());
-				bos.flush();
-				
+					bos.write(httpMessage.getBytes());
+					bos.flush();
+					
+				} else if(url.startsWith("/qrcode")) {
+					Map<String, String> parameter = getParameter(url);
+					
+					String responseHeader = "Content-Type: image/jpg; Charset=utf-8 \n";
+					responseHeader += "Content-Disposition: attachment; filename=" + parameter.get("fileName") + ".jpg \n\n";
+					String header = HttpStatusCode.OK.getStartLine() + responseHeader;
+					
+					bos.write(header.getBytes());
+					
+					QRCodeWriter qr = new QRCodeWriter();
+					BitMatrix matrix = qr.encode(parameter.get("contents"), BarcodeFormat.QR_CODE, 1000, 1000);
+					
+					String color = "ff" + parameter.get("color").replace("#", "");
+					
+					int argb = (int)Long.parseLong(color, 16);				
+					MatrixToImageConfig config = new MatrixToImageConfig(argb, MatrixToImageConfig.WHITE);
+					MatrixToImageWriter.writeToStream(matrix, "jpg", bos, config);
+					
+					bos.flush();
+					
+				} else {
+					// 존재하지 않는 리소스 요청
+					bos.write(HttpStatusCode.NOT_FOUND.getStartLine().getBytes());
+					bos.flush();
+				}
+						
 				socket.close();
 
 			} catch (IOException e) {
 				e.printStackTrace();
-			} finally {
+			} catch (WriterException e) {
+				e.printStackTrace();
+			}finally {
 				
 			}
 		}
 	}
+	
+	private Map<String, String> getParameter(String url) {
+		String queryString = url.substring(url.indexOf("?" + 1));
+		Map<String, String> params = new HashMap<String, String>();
+		
+		for(String param : queryString.split("&")) {
+			String[] entry = param.split("=");
+			
+			params.put(entry[0], entry[1]);
+		}
+		
+		return params;
+	}
 
-	private void testHttpMessage(BufferedReader br, StringBuffer sb) throws IOException {
-		String httpMessage;
+	private String indexTemplate() {
+	      return "<div style='background-image: "
+	            + "       url(https://post-phinf.pstatic.net/MjAyMDA3MDVfNTYg/MDAxNTkzOTI1Mzc0ODE5.o3B7kLsyl8DObAcpAaUWSA9BjNcNett3MzWnjfhR4MMg.wbizUF4GQf3N8qG4rp2cWcX-gz5fZGJ6bCOkPyFjYRUg.JPEG/13.jpg?type=w1200)"
+	            + "'>" 
+	            + "<h1>QRCode 다운로드 받는 사이트</h1>" 
+	            + "<h2>QR코드 원하세요?</h2>" 
+	            + "<form action='/qrcode'>\n" // get / http/1.1
+	            	+ "<h4>다운 받을 파일 이름  *************</h4> \n"
+	            	+ "<input type='text' name='fileName' required/> \n"
+	            	+ "<h4>QR코드로 만들 문자열 *************</h4> \n"
+	            	+ "<input type='text' name='contents' required/> \n"
+	            	+ "<h4>QR코드 색상 *************</h4> \n"
+	            	+ "<input type='color' name='color' required/> \n"
+	            	+ "<button>전송</button> \n"
+	            + "</form> \n";
+	   }
+
+	private void testHttpMessageFormat(BufferedReader br, StringBuffer sb) throws IOException {
+		String httpMessage = "";
 		// http message를 구경해보자
-		while((httpMessage = br.readLine()) != null) {
-			sb.append(httpMessage);
+		while((httpMessage = br.readLine()) != "") {
+			sb.append(httpMessage + "\n");
 		}
 		System.out.println(sb);
 	}
