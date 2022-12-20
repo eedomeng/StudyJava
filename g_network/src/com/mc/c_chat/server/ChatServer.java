@@ -60,6 +60,7 @@ public class ChatServer {
 
 				} catch (IOException e) {
 					System.out.println("연결이 종료되었습니다.");
+					removeSocket(socket);
 				}
 			}
 		});
