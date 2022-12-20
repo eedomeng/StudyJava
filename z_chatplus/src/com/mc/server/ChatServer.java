@@ -18,7 +18,7 @@ public class ChatServer {
 		try {
 			this.serverSocket = new ServerSocket(8989);
 			socketList = Collections.synchronizedList(new ArrayList<Socket>());
-
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -47,9 +47,10 @@ public class ChatServer {
 
 	private void read(Socket socket) {
 		Thread thread = new Thread(new Runnable() {
+		
 			@Override
 			public void run() {
-				try (BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+				try (BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {										
 					while (true) {
 						String message = br.readLine();
 
