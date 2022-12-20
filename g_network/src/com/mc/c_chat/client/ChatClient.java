@@ -30,8 +30,17 @@ public class ChatClient {
 
 			} catch (IOException e) {
 				System.out.println("연결이 종료되었습니다.");
+				closeSocket();
 			}
 		}).start();
+	}
+
+	private void closeSocket() {
+		try {
+			socket.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 	}
 
 	private void write() {
@@ -51,6 +60,7 @@ public class ChatClient {
 
 			} catch (IOException e1) {
 				e1.printStackTrace();
+				closeSocket();
 			}
 		}).start();
 	}
