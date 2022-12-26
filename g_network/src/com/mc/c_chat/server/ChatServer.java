@@ -53,9 +53,11 @@ public class ChatServer {
 					while (true) {
 						String message = br.readLine();
 
-						if (message != null) {
-							broadcast(message);
-						}
+						// socket 연결이 끊기면, 더이상 스트림에서 읽어올 데이터가 없기 때문에, readLine이 null을 반환
+						if (message == null)
+							break;
+						broadcast(message);
+
 					}
 
 				} catch (IOException e) {
